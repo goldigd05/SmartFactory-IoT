@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Smart Factory Monitoring System</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+ * { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family:'Segoe UI',sans-serif;
+  background:#0a0a0a;
+  color:#e5e5e5;
+  min-height:100vh;
+}
+
+/* HEADER */
+header {
+  background:#111;
+  border-bottom:1px solid #333;
+  padding:14px 28px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+header h1 { font-size:1.25rem; color:#fff; font-weight:700; }
+header h1 span { color:#aaa; }
+.header-meta { font-size:0.8rem; color:#777; }
+
+.live-badge {
+  display:flex; align-items:center; gap:8px;
+  background:#1a1a1a;
+  border:1px solid #333;
+  padding:6px 14px;
+  border-radius:20px;
+  font-size:0.82rem;
+}
+.dot { width:9px; height:9px; border-radius:50%; background:#22c55e; }
+
+/* ALERT */
+#alert-banner {
+  display:none;
+  background:#1a1a1a;
+  border-left:4px solid #ff4d4d;
+  padding:10px 28px;
+  color:#ffb3b3;
+}
+
+/* MAIN */
+main { padding:22px 26px; }
+
+/* KPI */
+.kpi-row {
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:16px;
+  margin-bottom:22px;
+}
+
+.kpi {
+  background:#111;
+  border-radius:10px;
+  padding:18px 20px;
+  border:1px solid #2a2a2a;
+}
+
+.kpi label { font-size:0.75rem; color:#777; text-transform:uppercase; }
+.kpi .val { font-size:2rem; font-weight:700; color:#fff; }
+.kpi .unit { font-size:0.75rem; color:#888; }
+
+.status-pill {
+  display:inline-block;
+  font-size:0.7rem;
+  font-weight:700;
+  padding:2px 10px;
+  border-radius:20px;
+  margin-top:6px;
+}
+
+.pill-ok   { background:#1a1a1a; color:#4ade80; }
+.pill-warn { background:#1a1a1a; color:#facc15; }
+.pill-bad  { background:#1a1a1a; color:#f87171; }
+
+/* CARDS */
+.card {
+  background:#111;
+  border-radius:10px;
+  padding:18px 20px;
+  border:1px solid #2a2a2a;
+}
+
+.card h3 {
+  font-size:0.9rem;
+  color:#ccc;
+  margin-bottom:12px;
+}
+
+/* GRID */
+.charts-grid {
+  display:grid;
+  grid-template-columns:2fr 1fr;
+  gap:16px;
+  margin-bottom:22px;
+}
+
+/* ALERT LIST */
+.alert-item {
+  display:flex;
+  gap:10px;
+  padding:10px 0;
+  border-bottom:1px solid #222;
+}
+.alert-time { color:#666; font-size:0.75rem; }
+
+.no-alerts {
+  color:#555;
+  text-align:center;
+  padding:20px;
+}
+
+/* TABLE */
+table { width:100%; border-collapse:collapse; font-size:0.8rem; }
+
+th {
+  color:#777;
+  padding:7px;
+  border-bottom:1px solid #333;
+}
+
+td {
+  padding:7px;
+  border-bottom:1px solid #1a1a1a;
+}
+
+tr.anomaly-row td {
+  background:#1a0f0f;
+  color:#ffb3b3;
+}
+
+tr:hover td { background:#1a1a1a; }
+
+/* BOTTOM */
+.bottom-row {
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:16px;
+}
+
+/* BUTTONS */
+#sim-btn {
+  background:#fff;
+  color:#000;
+  border:none;
+  padding:10px;
+  border-radius:6px;
+  font-weight:700;
+  cursor:pointer;
+}
+#sim-btn:hover { background:#ddd; }
+
+#auto-btn {
+  background:#111;
+  color:#fff;
+  border:1px solid #444;
+  padding:8px;
+  border-radius:6px;
+  cursor:pointer;
+}
+
+#auto-btn.active {
+  background:#222;
+}
+
+/* STATS */
+.stat-row {
+  display:flex;
+  justify-content:space-between;
+  padding:9px 0;
+  border-bottom:1px solid #222;
+}
+
+.stat-label { color:#777; }
+.stat-val { color:#fff; }
+
+/* SCROLL */
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-thumb { background:#333; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🏭 Smart Factory <span>Monitoring System</span></h1>
+    <div class="header-meta">Team TechForge &nbsp;|&nbsp; Industrial Automation &nbsp;|&nbsp; IoT + ML Anomaly Detection</div>
+  </div>
+  <div class="live-badge"><div class="dot"></div> Live Dashboard</div>
+</header>
+
+<div id="alert-banner">⚠️ &nbsp;<strong>ANOMALY DETECTED!</strong> &nbsp;Unusual sensor reading — check machine immediately.</div>
+
+<main>
+  <!-- KPI Cards -->
+  <div class="kpi-row">
+    <div class="kpi" style="--accent:#00B4D8">
+      <label>Temperature</label>
+      <div class="val" id="kpi-temp">—</div>
+      <div class="unit">°C</div>
+      <span class="status-pill pill-ok" id="pill-temp">NORMAL</span>
+    </div>
+    <div class="kpi" style="--accent:#FF6B35">
+      <label>Vibration</label>
+      <div class="val" id="kpi-vib">—</div>
+      <div class="unit">m/s²</div>
+      <span class="status-pill pill-ok" id="pill-vib">NORMAL</span>
+    </div>
+    <div class="kpi" style="--accent:#8B5CF6">
+      <label>Pressure</label>
+      <div class="val" id="kpi-pres">—</div>
+      <div class="unit">kPa</div>
+      <span class="status-pill pill-ok" id="pill-pres">NORMAL</span>
+    </div>
+    <div class="kpi" style="--accent:#EF4444">
+      <label>Anomalies Detected</label>
+      <div class="val" id="kpi-anom">0</div>
+      <div class="unit">total</div>
+      <span class="status-pill pill-ok" id="pill-anom">SAFE</span>
+    </div>
+  </div>
+
+  <!-- Main charts row -->
+  <div class="charts-grid">
+    <div class="card">
+      <h3>📈 Live Sensor Trend</h3>
+      <canvas id="lineChart" height="130"></canvas>
+    </div>
+    <div class="card">
+      <h3>🚨 Alert Log</h3>
+      <div class="alert-list" id="alert-list">
+        <div class="no-alerts">No anomalies detected yet.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom row -->
+  <div class="bottom-row">
+    <!-- Recent readings table -->
+    <div class="card" style="grid-column:span 1">
+      <h3>📋 Recent Readings</h3>
+      <table>
+        <thead><tr><th>Time</th><th>Temp</th><th>Vib</th><th>Pres</th><th>Status</th></tr></thead>
+        <tbody id="readings-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Simulator -->
+    <div class="card sim-box">
+      <h3>🎛️ Sensor Simulator</h3>
+      <p>No hardware? Use this to<br/>simulate real sensor data.</p>
+      <button id="sim-btn" onclick="sendOne()">▶ Send One Reading</button>
+      <button id="auto-btn" onclick="toggleAuto()">⏱ Auto-Send (5s)</button>
+      <div id="sim-status"></div>
+    </div>
+
+    <!-- Stats -->
+    <div class="card">
+      <h3>📊 Session Statistics</h3>
+      <div id="stats-box">
+        <div class="stat-row"><span class="stat-label">Total Readings</span><span class="stat-val" id="s-total">0</span></div>
+        <div class="stat-row"><span class="stat-label">Total Anomalies</span><span class="stat-val" id="s-anom">0</span></div>
+        <div class="stat-row"><span class="stat-label">Avg Temperature</span><span class="stat-val" id="s-temp">—</span></div>
+        <div class="stat-row"><span class="stat-label">Avg Vibration</span><span class="stat-val" id="s-vib">—</span></div>
+        <div class="stat-row"><span class="stat-label">Avg Pressure</span><span class="stat-val" id="s-pres">—</span></div>
+        <div class="stat-row"><span class="stat-label">ML Model</span><span class="stat-val" style="color:#4ADE80">Active ✓</span></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ─── CHART SETUP ───
+const ctx = document.getElementById('lineChart').getContext('2d');
+const lineChart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [
+      { label: 'Temperature (°C)', data: [], borderColor: '#00B4D8', backgroundColor: 'rgba(0,180,216,0.08)',
+        tension: 0.4, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2 },
+      { label: 'Vibration (m/s²)', data: [], borderColor: '#FF6B35', backgroundColor: 'rgba(255,107,53,0.08)',
+        tension: 0.4, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2 },
+      { label: 'Pressure (kPa)', data: [], borderColor: '#8B5CF6', backgroundColor: 'rgba(139,92,246,0.08)',
+        tension: 0.4, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2 },
+    ]
+  },
+  options: {
+    responsive: true,
+    animation: { duration: 400 },
+    plugins: {
+      legend: { labels: { color: '#94A3B8', boxWidth: 12, font: { size: 11 } } }
+    },
+    scales: {
+      x: { ticks: { color: '#64748B', font: { size: 10 } }, grid: { color: '#1E3A5F55' } },
+      y: { ticks: { color: '#64748B', font: { size: 10 } }, grid: { color: '#1E3A5F55' } }
+    }
+  }
+});
+
+// ─── STATE ───
+let autoTimer = null;
+let alertLog  = [];
+
+// ─── FETCH DATA & REFRESH DASHBOARD ───
+async function refreshDashboard() {
+  const [readings, stats] = await Promise.all([
+    fetch('/data').then(r => r.json()),
+    fetch('/stats').then(r => r.json())
+  ]);
+
+  if (!readings.length) return;
+
+  const last = readings[readings.length - 1];
+
+  // KPI cards
+  document.getElementById('kpi-temp').textContent  = last.temperature;
+  document.getElementById('kpi-vib').textContent   = last.vibration;
+  document.getElementById('kpi-pres').textContent  = last.pressure;
+  document.getElementById('kpi-anom').textContent  = stats.anomalies;
+
+  setPill('pill-temp', last.temperature > 80 || last.anomaly, last.temperature > 75);
+  setPill('pill-vib',  last.vibration  > 9 || last.anomaly,  last.vibration  > 7);
+  setPill('pill-pres', last.pressure   < 95 || last.anomaly, last.pressure   < 98);
+
+  const anomPill = document.getElementById('pill-anom');
+  anomPill.textContent  = stats.anomalies > 0 ? 'ALERT' : 'SAFE';
+  anomPill.className    = 'status-pill ' + (stats.anomalies > 0 ? 'pill-bad' : 'pill-ok');
+
+  // Alert banner
+  document.getElementById('alert-banner').style.display = last.anomaly ? 'block' : 'none';
+
+  // Chart update
+  lineChart.data.labels            = readings.map(r => r.time);
+  lineChart.data.datasets[0].data  = readings.map(r => r.temperature);
+  lineChart.data.datasets[1].data  = readings.map(r => r.vibration);
+  lineChart.data.datasets[2].data  = readings.map(r => r.pressure);
+  // Mark anomaly points red
+  lineChart.data.datasets[0].pointBackgroundColor = readings.map(r => r.anomaly ? '#EF4444' : '#00B4D8');
+  lineChart.update();
+
+  // Recent table
+  const tbody = document.getElementById('readings-body');
+  tbody.innerHTML = readings.slice(-8).reverse().map(r => `
+    <tr class="${r.anomaly ? 'anomaly-row' : ''}">
+      <td>${r.time}</td>
+      <td>${r.temperature}°C</td>
+      <td>${r.vibration}</td>
+      <td>${r.pressure}</td>
+      <td>${r.anomaly ? '🔴 ANOMALY' : '🟢 Normal'}</td>
+    </tr>
+  `).join('');
+
+  // Stats
+  document.getElementById('s-total').textContent = stats.total;
+  document.getElementById('s-anom').textContent  = stats.anomalies;
+  document.getElementById('s-temp').textContent  = stats.avg_temp + ' °C';
+  document.getElementById('s-vib').textContent   = stats.avg_vib + ' m/s²';
+  document.getElementById('s-pres').textContent  = stats.avg_pres + ' kPa';
+
+  // Alert log: add new anomalies
+  readings.filter(r => r.anomaly).forEach(r => {
+    if (!alertLog.includes(r.time)) {
+      alertLog.push(r.time);
+      addAlert(r);
+    }
+  });
+}
+
+function setPill(id, isBad, isWarn) {
+  const el = document.getElementById(id);
+  if (isBad)       { el.className = 'status-pill pill-bad';  el.textContent = 'ANOMALY'; }
+  else if (isWarn) { el.className = 'status-pill pill-warn'; el.textContent = 'WARNING'; }
+  else             { el.className = 'status-pill pill-ok';   el.textContent = 'NORMAL';  }
+}
+
+function addAlert(r) {
+  const list = document.getElementById('alert-list');
+  const empty = list.querySelector('.no-alerts');
+  if (empty) empty.remove();
+  const div = document.createElement('div');
+  div.className = 'alert-item';
+  div.innerHTML = `
+    <div class="a-dot" style="background:#EF4444;margin-top:3px"></div>
+    <div>
+      <div style="color:#FCA5A5;font-size:0.82rem">⚠ Anomaly — Temp: ${r.temperature}°C, Vib: ${r.vibration}, Pres: ${r.pressure} kPa</div>
+      <div class="alert-time">${r.time}</div>
+    </div>`;
+  list.prepend(div);
+}
+
+// ─── SIMULATOR ───
+async function sendOne() {
+  const data = await fetch('/simulate').then(r => r.json());
+  await fetch('/send', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
+  document.getElementById('sim-status').textContent = `Sent: T=${data.temperature}°C  V=${data.vibration}  P=${data.pressure}kPa`;
+  await refreshDashboard();
+}
+
+function toggleAuto() {
+  const btn = document.getElementById('auto-btn');
+  if (autoTimer) {
+    clearInterval(autoTimer);
+    autoTimer = null;
+    btn.textContent = '⏱ Auto-Send (5s)';
+    btn.classList.remove('active');
+    document.getElementById('sim-status').textContent = 'Auto-send stopped.';
+  } else {
+    autoTimer = setInterval(sendOne, 5000);
+    sendOne();
+    btn.textContent = '⏹ Stop Auto-Send';
+    btn.classList.add('active');
+  }
+}
+
+// ─── AUTO REFRESH EVERY 5s ───
+refreshDashboard();
+setInterval(refreshDashboard, 5000);
+</script>
+</body>
+</html>
